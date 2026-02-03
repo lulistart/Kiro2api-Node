@@ -1,0 +1,17 @@
+{
+  "name": "kiro-node",
+  "version": "1.0.0",
+  "description": "Anthropic Claude API 兼容代理服务 - Node.js 版本",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0",
+    "node-fetch": "^3.3.2"
+  }
+}

@@ -1,0 +1,577 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiro2api-Node 管理面板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .animate-slideIn { animation: slideIn 0.3s ease-out; }
+        .animate-slideOut { animation: slideOut 0.3s ease-out forwards; }
+        .animate-scaleIn { animation: scaleIn 0.3s ease-out; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 登录页面 -->
+    <div id="loginPage" class="min-h-screen flex items-center justify-center animate-fadeIn">
+        <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900">Kiro2api-Node</h1>
+                <p class="text-gray-500 mt-2">请输入管理密钥登录</p>
+            </div>
+            <div id="loginError" class="hidden bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">密钥错误，请重试</div>
+            <input type="password" id="adminKeyInput" placeholder="管理密钥" 
+                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition mb-4"
+                onkeypress="if(event.key==='Enter')login()">
+            <button onclick="login()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition duration-200">登录</button>
+        </div>
+    </div>
+
+    <!-- 主面板 -->
+    <div id="mainPanel" class="hidden">
+        <!-- 顶部导航 -->
+        <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">Kiro2api-Node</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="logout()" class="text-gray-500 hover:text-gray-700 text-sm font-medium transition">退出登录</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+            <!-- 统计卡片 -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="text-2xl font-bold text-gray-900" id="stat-active">-</div>
+                    <div class="text-sm text-gray-500">活跃账号</div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="text-2xl font-bold text-yellow-500" id="stat-cooldown">-</div>
+                    <div class="text-sm text-gray-500">冷却中</div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="text-2xl font-bold text-red-500" id="stat-invalid">-</div>
+                    <div class="text-sm text-gray-500">已失效</div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="text-2xl font-bold text-gray-900" id="stat-requests">-</div>
+                    <div class="text-sm text-gray-500">总请求</div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="text-2xl font-bold text-blue-500" id="stat-input">-</div>
+                    <div class="text-sm text-gray-500">输入Tokens</div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="text-2xl font-bold text-green-500" id="stat-output">-</div>
+                    <div class="text-sm text-gray-500">输出Tokens</div>
+                </div>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div class="text-2xl font-bold text-purple-500" id="stat-uptime">-</div>
+                    <div class="text-sm text-gray-500">运行时间</div>
+                </div>
+            </div>
+
+            <!-- 标签页 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+                <div class="border-b border-gray-100">
+                    <nav class="flex space-x-8 px-6">
+                        <button onclick="switchTab('accounts')" class="tab-btn border-b-2 border-blue-500 text-blue-600 py-4 px-1 text-sm font-medium" data-tab="accounts">账号管理</button>
+                        <button onclick="switchTab('logs')" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-1 text-sm font-medium" data-tab="logs">请求记录</button>
+                        <button onclick="switchTab('settings')" class="tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-1 text-sm font-medium" data-tab="settings">设置</button>
+                    </nav>
+                </div>
+
+                <!-- 账号管理 -->
+                <div id="tab-accounts" class="p-6 tab-content">
+                    <div class="flex flex-wrap items-center gap-3 mb-6">
+                        <button onclick="showModal('addModal')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            添加账号
+                        </button>
+                        <button onclick="showModal('importModal')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            导入
+                        </button>
+                        <button onclick="refreshAllUsage()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            刷新全部额度
+                        </button>
+                        <button id="batchDeleteBtn" onclick="batchDeleteAccounts()" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            批量删除 (<span id="selectedCount">0</span>)
+                        </button>
+                        <select id="strategy" onchange="setStrategy(this.value)" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="round-robin">轮询策略</option>
+                            <option value="random">随机策略</option>
+                            <option value="least-used">最少使用</option>
+                        </select>
+                        <button onclick="refresh()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
+                    </div>
+                    <div id="accounts-table" class="overflow-x-auto"></div>
+                </div>
+
+                <!-- 请求记录 -->
+                <div id="tab-logs" class="p-6 tab-content hidden">
+                    <div class="flex gap-3 mb-6">
+                        <button onclick="loadLogs()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
+                        <button onclick="clearLogs()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            清空记录
+                        </button>
+                    </div>
+                    <div id="logs-table" class="overflow-x-auto"></div>
+                </div>
+
+                <!-- 设置 -->
+                <div id="tab-settings" class="p-6 tab-content hidden">
+                    <div class="max-w-2xl">
+                        <!-- API 端点信息 -->
+                        <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-3">API 端点</h3>
+                            
+                            <div class="mb-4">
+                                <p class="text-xs text-gray-500 mb-2 font-medium">Anthropic 格式</p>
+                                <div class="space-y-2 font-mono text-sm">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">GET</span>
+                                        <span class="text-gray-700">/v1/models</span>
+                                        <button onclick="copyText(location.origin + '/v1/models')" class="text-blue-500 hover:text-blue-700 text-xs">复制</button>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">POST</span>
+                                        <span class="text-gray-700">/v1/messages</span>
+                                        <button onclick="copyText(location.origin + '/v1/messages')" class="text-blue-500 hover:text-blue-700 text-xs">复制</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <p class="text-xs text-gray-500 mt-3">Base URL: <span class="text-gray-700" id="baseUrl"></span></p>
+                        </div>
+
+                        <div class="mb-8">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">管理密钥</h3>
+                            <p class="text-sm text-gray-500 mb-4">用于登录管理面板</p>
+                            <div class="flex gap-3">
+                                <input type="password" id="new-admin-key" placeholder="输入新的管理密钥" class="flex-1 max-w-xs px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button onclick="changeAdminKey()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">修改密钥</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">API 密钥</h3>
+                            <p class="text-sm text-gray-500 mb-4">用于 API 调用认证，支持多个</p>
+                            <div class="flex gap-3 mb-4">
+                                <input type="text" id="new-api-key" placeholder="输入新的 API 密钥" class="flex-1 max-w-md px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button onclick="addApiKey()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">添加</button>
+                                <button onclick="loadApiKeys()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
+                            </div>
+                            <div id="api-keys-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知容器 -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- 添加账号弹窗 -->
+    <div id="addModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scaleIn">
+            <div class="flex items-center justify-between p-6 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900">添加账号</h3>
+                <button onclick="hideModal('addModal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="text" id="acc-name" placeholder="账号名称" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select id="acc-auth" onchange="toggleIdcFields()" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="social">Social</option>
+                    <option value="idc">IdC / BuilderId</option>
+                </select>
+                <textarea id="acc-refresh" placeholder="Refresh Token" rows="3" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                <div id="idc-fields" class="hidden space-y-4">
+                    <input type="text" id="acc-client-id" placeholder="Client ID" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <textarea id="acc-client-secret" placeholder="Client Secret" rows="2" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 p-6 border-t border-gray-100">
+                <button onclick="hideModal('addModal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition">取消</button>
+                <button onclick="addAccount()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入弹窗 -->
+    <div id="importModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 animate-scaleIn">
+            <div class="flex items-center justify-between p-6 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900">批量导入账号</h3>
+                <button onclick="hideModal('importModal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-gray-500 mb-4">支持导入 JSON 文件或粘贴 JSON 内容</p>
+                <input type="file" id="import-file" accept=".json" class="hidden" onchange="handleFileSelect(event)">
+                <button onclick="document.getElementById('import-file').click()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border-2 border-dashed border-blue-200 rounded-lg py-4 text-sm font-medium transition mb-2">选择 JSON 文件</button>
+                <div id="file-name" class="text-sm text-gray-500 mb-4"></div>
+                <div class="text-center text-gray-400 text-sm mb-4">— 或者 —</div>
+                <textarea id="import-json" placeholder="粘贴 JSON 内容" rows="6" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"></textarea>
+            </div>
+            <div class="flex justify-end gap-3 p-6 border-t border-gray-100">
+                <button onclick="hideModal('importModal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition">取消</button>
+                <button onclick="importAccounts()" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition">开始导入</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let adminKey = localStorage.getItem('kiro_admin_key') || '';
+        let selectedAccounts = new Set();
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500', warning: 'bg-yellow-500' };
+            const toast = document.createElement('div');
+            toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slideIn`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('animate-slideOut'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        async function fetchApi(url, options = {}) {
+            const res = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminKey, ...options.headers } });
+            if (res.status === 401) { logout(); throw new Error('认证失败'); }
+            if (!res.ok && res.status !== 204) throw new Error(await res.text() || res.statusText);
+            return res.status === 204 ? null : res.json();
+        }
+
+        async function login() {
+            const key = document.getElementById('adminKeyInput').value.trim();
+            if (!key) { showToast('请输入管理密钥', 'warning'); return; }
+            try {
+                const res = await fetch('/api/status', { headers: { 'Authorization': 'Bearer ' + key } });
+                if (res.ok) { adminKey = key; localStorage.setItem('kiro_admin_key', key); showMainPanel(); showToast('登录成功', 'success'); }
+                else { document.getElementById('loginError').classList.remove('hidden'); }
+            } catch { document.getElementById('loginError').classList.remove('hidden'); }
+        }
+
+        function logout() {
+            adminKey = '';
+            localStorage.removeItem('kiro_admin_key');
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('mainPanel').classList.add('hidden');
+        }
+
+        function showMainPanel() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('mainPanel').classList.remove('hidden');
+            refresh();
+        }
+
+        function formatUptime(secs) {
+            const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
+            return h > 0 ? `${h}h ${m}m` : `${m}m ${secs % 60}s`;
+        }
+
+        function formatNumber(n) {
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return n.toString();
+        }
+
+        async function loadStatus() {
+            try {
+                const data = await fetchApi('/api/status');
+                document.getElementById('stat-uptime').textContent = formatUptime(data.uptimeSecs);
+                document.getElementById('stat-active').textContent = data.pool.active;
+                document.getElementById('stat-cooldown').textContent = data.pool.cooldown;
+                document.getElementById('stat-invalid').textContent = data.pool.invalid;
+                document.getElementById('stat-requests').textContent = formatNumber(data.pool.totalRequests);
+                const stats = await fetchApi('/api/logs/stats');
+                document.getElementById('stat-input').textContent = formatNumber(stats.totalInputTokens || 0);
+                document.getElementById('stat-output').textContent = formatNumber(stats.totalOutputTokens || 0);
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadAccounts() {
+            try {
+                const accounts = await fetchApi('/api/accounts');
+                const container = document.getElementById('accounts-table');
+                selectedAccounts.clear();
+                updateBatchDeleteBtn();
+                if (accounts.length === 0) {
+                    container.innerHTML = '<div class="text-center py-12 text-gray-500">暂无账号，点击上方按钮添加</div>';
+                    return;
+                }
+                container.innerHTML = `
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="px-4 py-3 rounded-tl-lg w-10"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)" class="rounded border-gray-300 text-blue-500 focus:ring-blue-500"></th>
+                                <th class="px-4 py-3">名称</th>
+                                <th class="px-4 py-3">状态</th>
+                                <th class="px-4 py-3">额度</th>
+                                <th class="px-4 py-3">请求</th>
+                                <th class="px-4 py-3">错误</th>
+                                <th class="px-4 py-3 rounded-tr-lg">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            ${accounts.map((a, i) => `
+                                <tr class="hover:bg-gray-50 transition ${i % 2 === 1 ? 'bg-gray-50/50' : ''}">
+                                    <td class="px-4 py-4"><input type="checkbox" data-id="${a.id}" onchange="toggleSelect('${a.id}', this.checked)" class="account-checkbox rounded border-gray-300 text-blue-500 focus:ring-blue-500"></td>
+                                    <td class="px-4 py-4">
+                                        <div class="font-medium text-gray-900">${a.name}</div>
+                                        ${a.usage?.userEmail ? `<div class="text-xs text-gray-500">${a.usage.userEmail}</div>` : ''}
+                                    </td>
+                                    <td class="px-4 py-4">${formatStatus(a.status)}</td>
+                                    <td class="px-4 py-4">${formatUsage(a.usage)}</td>
+                                    <td class="px-4 py-4 text-gray-600">${a.requestCount}</td>
+                                    <td class="px-4 py-4 text-gray-600">${a.errorCount}</td>
+                                    <td class="px-4 py-4">
+                                        <div class="flex items-center gap-2">
+                                            <button onclick="refreshUsage('${a.id}')" class="text-blue-500 hover:text-blue-700 text-sm" title="刷新额度">🔄</button>
+                                            ${a.status === 'disabled' 
+                                                ? `<button onclick="enableAccount('${a.id}')" class="text-green-500 hover:text-green-700 text-sm font-medium">启用</button>`
+                                                : `<button onclick="disableAccount('${a.id}')" class="text-gray-500 hover:text-gray-700 text-sm font-medium">禁用</button>`}
+                                            <button onclick="removeAccount('${a.id}')" class="text-red-500 hover:text-red-700 text-sm font-medium">删除</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+            } catch (e) { console.error(e); }
+        }
+
+        function toggleSelect(id, checked) {
+            if (checked) selectedAccounts.add(id);
+            else selectedAccounts.delete(id);
+            updateBatchDeleteBtn();
+        }
+
+        function toggleSelectAll(checked) {
+            document.querySelectorAll('.account-checkbox').forEach(cb => {
+                cb.checked = checked;
+                if (checked) selectedAccounts.add(cb.dataset.id);
+                else selectedAccounts.delete(cb.dataset.id);
+            });
+            updateBatchDeleteBtn();
+        }
+
+        function updateBatchDeleteBtn() {
+            const btn = document.getElementById('batchDeleteBtn');
+            document.getElementById('selectedCount').textContent = selectedAccounts.size;
+            btn.classList.toggle('hidden', selectedAccounts.size === 0);
+        }
+
+        async function batchDeleteAccounts() {
+            if (selectedAccounts.size === 0) return;
+            if (!confirm(`确定删除选中的 ${selectedAccounts.size} 个账号？`)) return;
+            try {
+                const result = await fetchApi('/api/accounts/batch', { method: 'DELETE', body: JSON.stringify({ ids: Array.from(selectedAccounts) }) });
+                showToast(`成功删除 ${result.removed} 个账号`, 'success');
+                refresh();
+            } catch (e) { showToast('批量删除失败: ' + e.message, 'error'); }
+        }
+
+        async function clearLogs() {
+            if (!confirm('确定清空所有请求记录？')) return;
+            try {
+                await fetchApi('/api/logs', { method: 'DELETE' });
+                loadLogs();
+                loadStatus();
+                showToast('记录已清空', 'success');
+            } catch (e) { showToast('清空失败: ' + e.message, 'error'); }
+        }
+
+        function formatStatus(status) {
+            const styles = { active: 'bg-green-100 text-green-700', cooldown: 'bg-yellow-100 text-yellow-700', invalid: 'bg-red-100 text-red-700', disabled: 'bg-gray-100 text-gray-700' };
+            return `<span class="px-2 py-1 rounded-full text-xs font-medium ${styles[status] || styles.disabled}">${status}</span>`;
+        }
+
+        function formatUsage(usage) {
+            if (!usage) return '<span class="text-gray-400 text-sm">未知</span>';
+            if (usage.error) return `<span class="text-red-500 text-sm" title="${usage.error}">错误</span>`;
+            const used = usage.currentUsage || 0, limit = usage.usageLimit || 0, available = usage.available || 0;
+            const percent = limit > 0 ? Math.round((used / limit) * 100) : 0;
+            const barColor = percent > 90 ? 'bg-red-500' : percent > 70 ? 'bg-yellow-500' : 'bg-green-500';
+            const textColor = percent > 90 ? 'text-red-600' : percent > 70 ? 'text-yellow-600' : 'text-green-600';
+            return `<div class="w-32"><div class="flex justify-between text-xs mb-1"><span class="${textColor} font-medium">${available.toFixed(1)}</span><span class="text-gray-400">/ ${limit.toFixed(0)}</span></div><div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div class="${barColor} h-full rounded-full transition-all" style="width: ${percent}%"></div></div><div class="text-xs text-gray-400 mt-1">${percent}% 已用</div></div>`;
+        }
+
+        async function refreshUsage(id) {
+            try { await fetchApi(`/api/accounts/${id}/refresh-usage`, { method: 'POST' }); loadAccounts(); showToast('刷新成功', 'success'); }
+            catch (e) { showToast('刷新失败: ' + e.message, 'error'); }
+        }
+
+        async function refreshAllUsage() {
+            try { showToast('正在刷新...', 'info'); await fetchApi('/api/accounts/refresh-all-usage', { method: 'POST' }); loadAccounts(); showToast('刷新完成！', 'success'); }
+            catch (e) { showToast('刷新失败: ' + e.message, 'error'); }
+        }
+
+        async function loadLogs() {
+            try {
+                const logs = await fetchApi('/api/logs');
+                const container = document.getElementById('logs-table');
+                if (!logs || logs.length === 0) { container.innerHTML = '<div class="text-center py-12 text-gray-500">暂无请求记录</div>'; return; }
+                container.innerHTML = `
+                    <table class="w-full">
+                        <thead><tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-4 py-3 rounded-tl-lg">时间</th><th class="px-4 py-3">账号</th><th class="px-4 py-3">模型</th><th class="px-4 py-3">输入</th><th class="px-4 py-3">输出</th><th class="px-4 py-3">耗时</th><th class="px-4 py-3 rounded-tr-lg">状态</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">
+                            ${logs.map((l, i) => `<tr class="hover:bg-gray-50 transition ${i % 2 === 1 ? 'bg-gray-50/50' : ''}">
+                                <td class="px-4 py-3 text-sm text-gray-600">${new Date(l.timestamp).toLocaleString()}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">${l.accountName}</td>
+                                <td class="px-4 py-3 text-xs text-gray-500">${l.model || '-'}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">${l.inputTokens || 0}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">${l.outputTokens || 0}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">${l.durationMs}ms</td>
+                                <td class="px-4 py-3">${l.success ? '<span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">成功</span>' : '<span class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">失败</span>'}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>`;
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadStrategy() {
+            try { const data = await fetchApi('/api/strategy'); document.getElementById('strategy').value = data.strategy; }
+            catch (e) { console.error(e); }
+        }
+
+        async function setStrategy(value) {
+            try { await fetchApi('/api/strategy', { method: 'POST', body: JSON.stringify({ strategy: value }) }); showToast('策略已更新', 'success'); }
+            catch (e) { showToast('设置失败: ' + e.message, 'error'); }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(t => { t.classList.remove('border-blue-500', 'text-blue-600'); t.classList.add('border-transparent', 'text-gray-500'); });
+            document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.remove('border-transparent', 'text-gray-500');
+            document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('border-blue-500', 'text-blue-600');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+            if (tab === 'logs') loadLogs();
+            if (tab === 'settings') { loadApiKeys(); document.getElementById('baseUrl').textContent = location.origin; }
+        }
+
+        function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function toggleIdcFields() { document.getElementById('idc-fields').classList.toggle('hidden', document.getElementById('acc-auth').value !== 'idc'); }
+
+        async function addAccount() {
+            const data = { name: document.getElementById('acc-name').value || '未命名账号', auth_method: document.getElementById('acc-auth').value, refresh_token: document.getElementById('acc-refresh').value, client_id: document.getElementById('acc-client-id').value || null, client_secret: document.getElementById('acc-client-secret').value || null };
+            if (!data.refresh_token) { showToast('请填写 Refresh Token', 'warning'); return; }
+            try { await fetchApi('/api/accounts', { method: 'POST', body: JSON.stringify(data) }); hideModal('addModal'); refresh(); showToast('添加成功', 'success'); }
+            catch (e) { showToast('添加失败: ' + e.message, 'error'); }
+        }
+
+        async function importAccounts() {
+            let jsonContent = document.getElementById('import-json').value.trim();
+            if (!jsonContent) { showToast('请选择文件或粘贴 JSON 内容', 'warning'); return; }
+            try { JSON.parse(jsonContent); } catch { showToast('JSON 格式错误', 'error'); return; }
+            try {
+                const result = await fetchApi('/api/accounts/import', { method: 'POST', body: JSON.stringify({ raw_json: jsonContent }) });
+                hideModal('importModal'); document.getElementById('import-json').value = ''; document.getElementById('file-name').textContent = ''; refresh();
+                showToast(`导入完成！成功: ${result.success} 个，失败: ${result.failed} 个`, result.failed > 0 ? 'warning' : 'success');
+            } catch (e) { showToast('导入失败: ' + e.message, 'error'); }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            document.getElementById('file-name').textContent = `已选择: ${file.name}`;
+            const reader = new FileReader();
+            reader.onload = (e) => { document.getElementById('import-json').value = e.target.result; };
+            reader.readAsText(file);
+        }
+
+        async function removeAccount(id) {
+            if (!confirm('确定删除？')) return;
+            try { await fetchApi(`/api/accounts/${id}`, { method: 'DELETE' }); refresh(); showToast('删除成功', 'success'); }
+            catch (e) { showToast('删除失败: ' + e.message, 'error'); }
+        }
+
+        async function enableAccount(id) {
+            try { await fetchApi(`/api/accounts/${id}/enable`, { method: 'POST' }); refresh(); showToast('已启用', 'success'); }
+            catch (e) { showToast('启用失败: ' + e.message, 'error'); }
+        }
+
+        async function disableAccount(id) {
+            try { await fetchApi(`/api/accounts/${id}/disable`, { method: 'POST' }); refresh(); showToast('已禁用', 'success'); }
+            catch (e) { showToast('禁用失败: ' + e.message, 'error'); }
+        }
+
+        async function changeAdminKey() {
+            const newKey = document.getElementById('new-admin-key').value.trim();
+            if (!newKey) { showToast('请输入新的管理密钥', 'warning'); return; }
+            if (newKey.length < 6) { showToast('密钥长度至少 6 位', 'warning'); return; }
+            if (!confirm('确定修改管理密钥？修改后需要重新登录。')) return;
+            try { await fetchApi('/api/settings/admin-key', { method: 'POST', body: JSON.stringify({ new_key: newKey }) }); showToast('修改成功！请重新登录', 'success'); logout(); }
+            catch (e) { showToast('修改失败: ' + e.message, 'error'); }
+        }
+
+        async function loadApiKeys() {
+            try {
+                const keys = await fetchApi('/api/settings/api-keys');
+                const container = document.getElementById('api-keys-list');
+                if (!keys || keys.length === 0) { container.innerHTML = '<div class="text-gray-500">暂无 API 密钥</div>'; return; }
+                container.innerHTML = `<table class="w-full"><thead><tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><th class="px-4 py-3 rounded-tl-lg">密钥</th><th class="px-4 py-3 rounded-tr-lg">操作</th></tr></thead><tbody class="divide-y divide-gray-100">${keys.map(k => `<tr class="hover:bg-gray-50 transition"><td class="px-4 py-3 font-mono text-sm text-gray-900">${k.key}</td><td class="px-4 py-3"><button onclick="copyText('${k.key}')" class="text-blue-500 hover:text-blue-700 text-sm font-medium mr-3">复制</button><button onclick="removeApiKey('${k.key}')" class="text-red-500 hover:text-red-700 text-sm font-medium">删除</button></td></tr>`).join('')}</tbody></table>`;
+            } catch (e) { console.error(e); }
+        }
+
+        async function addApiKey() {
+            const newKey = document.getElementById('new-api-key').value.trim();
+            if (!newKey) { showToast('请输入 API 密钥', 'warning'); return; }
+            if (newKey.length < 6) { showToast('密钥长度至少 6 位', 'warning'); return; }
+            try { await fetchApi('/api/settings/api-keys', { method: 'POST', body: JSON.stringify({ key: newKey }) }); document.getElementById('new-api-key').value = ''; loadApiKeys(); showToast('添加成功', 'success'); }
+            catch (e) { showToast('添加失败: ' + e.message, 'error'); }
+        }
+
+        async function removeApiKey(key) {
+            if (!confirm('确定删除此 API 密钥？')) return;
+            try { await fetchApi('/api/settings/api-keys', { method: 'DELETE', body: JSON.stringify({ key }) }); loadApiKeys(); showToast('删除成功', 'success'); }
+            catch (e) { showToast('删除失败: ' + e.message, 'error'); }
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板', 'success')).catch(() => prompt('复制失败，请手动复制:', text));
+        }
+
+        async function refresh() { loadStatus(); loadAccounts(); loadStrategy(); }
+
+        (async () => {
+            if (adminKey) {
+                try { const res = await fetch('/api/status', { headers: { 'Authorization': 'Bearer ' + adminKey } }); if (res.ok) { showMainPanel(); return; } } catch {}
+            }
+            document.getElementById('loginPage').classList.remove('hidden');
+        })();
+
+        setInterval(() => { if (adminKey && !document.getElementById('mainPanel').classList.contains('hidden')) { loadStatus(); loadAccounts(); } }, 5000);
+    </script>
+</body>
+</html>
