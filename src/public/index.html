@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -132,12 +132,19 @@
 
                 <!-- 请求记录 -->
                 <div id="tab-logs" class="p-6 tab-content hidden">
-                    <div class="flex gap-3 mb-6">
-                        <button onclick="loadLogs()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
-                        <button onclick="clearLogs()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                            清空记录
-                        </button>
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex gap-3">
+                            <button onclick="loadLogs()" class="border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition">刷新</button>
+                            <button onclick="clearLogs()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                清空记录
+                            </button>
+                        </div>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()" class="sr-only peer">
+                            <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <span class="ml-3 text-sm font-medium text-gray-700">自动刷新</span>
+                        </label>
                     </div>
                     <div id="logs-table" class="overflow-x-auto"></div>
                 </div>
@@ -251,6 +258,9 @@
     <script>
         let adminKey = localStorage.getItem('kiro_admin_key') || '';
         let selectedAccounts = new Set();
+        let autoRefreshInterval = null;
+        let serverStartTime = null;
+        let uptimeInterval = null;
 
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
@@ -260,6 +270,37 @@
             toast.textContent = message;
             container.appendChild(toast);
             setTimeout(() => { toast.classList.add('animate-slideOut'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function toggleAutoRefresh() {
+            const toggle = document.getElementById('autoRefreshToggle');
+            if (toggle.checked) {
+                autoRefreshInterval = setInterval(() => {
+                    loadLogs();
+                }, 5000);
+                showToast('已开启自动刷新', 'success');
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+                showToast('已关闭自动刷新', 'info');
+            }
+        }
+
+        function startUptimeCounter() {
+            if (uptimeInterval) {
+                clearInterval(uptimeInterval);
+            }
+            uptimeInterval = setInterval(() => {
+                if (serverStartTime) {
+                    const uptime = Math.floor((Date.now() - serverStartTime) / 1000);
+                    const uptimeEl = document.getElementById('stat-uptime');
+                    if (uptimeEl) {
+                        uptimeEl.textContent = formatUptime(uptime);
+                    }
+                }
+            }, 1000);
         }
 
         async function fetchApi(url, options = {}) {
@@ -280,6 +321,14 @@
         }
 
         function logout() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            if (uptimeInterval) {
+                clearInterval(uptimeInterval);
+                uptimeInterval = null;
+            }
             adminKey = '';
             localStorage.removeItem('kiro_admin_key');
             document.getElementById('loginPage').classList.remove('hidden');
@@ -306,6 +355,7 @@
         async function loadStatus() {
             try {
                 const data = await fetchApi('/api/status');
+                serverStartTime = Date.now() - (data.uptimeSecs * 1000);
                 document.getElementById('stat-uptime').textContent = formatUptime(data.uptimeSecs);
                 document.getElementById('stat-active').textContent = data.pool.active;
                 document.getElementById('stat-cooldown').textContent = data.pool.cooldown;
@@ -314,6 +364,7 @@
                 const stats = await fetchApi('/api/logs/stats');
                 document.getElementById('stat-input').textContent = formatNumber(stats.totalInputTokens || 0);
                 document.getElementById('stat-output').textContent = formatNumber(stats.totalOutputTokens || 0);
+                startUptimeCounter();
             } catch (e) { console.error(e); }
         }
 
@@ -475,7 +526,18 @@
             document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('border-blue-500', 'text-blue-600');
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
             document.getElementById('tab-' + tab).classList.remove('hidden');
-            if (tab === 'logs') loadLogs();
+            if (tab === 'logs') {
+                loadLogs();
+                const toggle = document.getElementById('autoRefreshToggle');
+                if (toggle && toggle.checked && !autoRefreshInterval) {
+                    autoRefreshInterval = setInterval(() => { loadLogs(); }, 5000);
+                }
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
             if (tab === 'settings') { loadApiKeys(); document.getElementById('baseUrl').textContent = location.origin; }
         }
 
