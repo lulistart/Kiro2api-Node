@@ -52,3 +52,17 @@ export function countMessagesTokens(messages) {
   }
   return total;
 }
+
+/**
+ * 计算工具调用的 token 数量
+ * @param {Map} toolUseBuffers - Map of toolUseId -> { name, input }
+ * @returns {number} token 数量
+ */
+export function countToolUseTokens(toolUseBuffers) {
+  let total = 0;
+  for (const toolUse of toolUseBuffers.values()) {
+    total += countTokens(toolUse.name || '');
+    total += countTokens(toolUse.input || '');
+  }
+  return total;
+}
