@@ -9,7 +9,7 @@
   <a href="#快速开始">快速开始</a> •
   <a href="#api-文档">API 文档</a> •
   <a href="#管理面板">管理面板</a> •
-  <a href="#配置说明">配置说明</a>
+  <a href="#环境变量">环境变量</a>
 </p>
 
 > 基于 [kiro2api-rs](https://github.com/vagmr/kiro2api-rs) 使用 Node.js 重构优化
@@ -23,7 +23,7 @@
 ### 核心功能
 - 🔄 **Anthropic API 兼容** - 完整支持 Anthropic Claude API 格式
 - 📡 **流式响应** - 支持 SSE (Server-Sent Events) 实时输出
-- 🔐 **Token 自动刷新** - 自动管理和刷新 OAuth Token
+- 🔐 **Token 自动刷新** - 自动管理和刷新 OAuth Token（social/idc）
 - 🧠 **Thinking 模式** - 支持 Claude extended thinking 功能
 - 🛠️ **工具调用** - 完整支持 function calling / tool use
 
@@ -57,9 +57,41 @@ npm start
 npm run dev
 ```
 
-### 方式二：Docker 部署
+### 方式二：PM2 部署
 
 ```bash
+# 安装 PM2（如未安装）
+npm install -g pm2
+
+# 启动服务
+npm run pm2:start
+
+# 查看状态
+npm run pm2:status
+
+# 查看日志
+npm run pm2:logs
+
+# 重启服务
+npm run pm2:restart
+
+# 停止服务
+npm run pm2:stop
+
+# 删除进程
+npm run pm2:delete
+
+# 设置开机自启
+pm2 startup
+pm2 save
+```
+
+### 方式三：Docker 部署
+
+```bash
+# 复制环境变量示例并按需修改
+cp .env.example .env
+
 # 使用 docker-compose（推荐）
 docker-compose up -d
 
@@ -68,6 +100,7 @@ docker build -t kiro2api-node .
 docker run -d -p 8080:8080 \
   -e API_KEY=sk-your-key \
   -e ADMIN_KEY=your-admin-key \
+  -e DATA_DIR=/app/data \
   -v ./data:/app/data \
   kiro2api-node
 ```
@@ -112,6 +145,8 @@ docker run -d -p 8080:8080 \
 | `accounts` | 账号信息（凭证、状态、配额） |
 | `settings` | 系统设置（管理密钥） |
 | `api_keys` | API 密钥列表 |
+| `models` | 模型配置（展示名、上下文等） |
+| `model_mappings` | 模型映射规则 |
 | `request_logs` | 请求日志记录 |
 
 ### 数据迁移
@@ -122,6 +157,13 @@ docker run -d -p 8080:8080 \
 - `request_logs.json` → `request_logs` 表
 
 迁移后自动备份原文件（`.backup.{timestamp}`）并删除原文件，防止重复迁移。
+
+**默认模型初始化：**
+- 首次启动会初始化 `models` 与 `model_mappings` 默认数据
+- 可通过管理 API 重置模型与映射
+
+**请求日志自动清理：**
+- 每天凌晨 3 点清理旧日志，默认保留最近 10 万条
 
 ### 备份建议
 
@@ -221,6 +263,8 @@ curl -X POST http://localhost:8080/v1/messages \
 - **请求记录** - 查看历史请求日志
 - **策略切换** - 轮询 / 随机 / 最少使用
 - **密钥管理** - 管理多个 API Key
+- **模型管理** - 模型与映射规则配置
+- **统计面板** - 请求与 Token 统计
 
 ---
 
@@ -270,6 +314,7 @@ kiro-node/
 │   └── kiro.db           # SQLite 数据库（自动创建）
 ├── Dockerfile
 ├── docker-compose.yml
+├── .env.example
 └── package.json
 ```
 

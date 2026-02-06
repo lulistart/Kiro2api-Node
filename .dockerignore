@@ -10,6 +10,7 @@ data/settings.json
 data/kiro.db
 data/kiro.db-shm
 data/kiro.db-wal
+data/
 data/*.backup.*
 .env
 logs/

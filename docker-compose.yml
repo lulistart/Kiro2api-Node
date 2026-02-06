@@ -5,12 +5,13 @@ services:
     build: .
     container_name: kiro2api-node
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:${PORT:-8080}"
     environment:
-      - PORT=8080
-      - API_KEY=sk-your-api-key
-      - ADMIN_KEY=your-admin-key
+      - PORT=${PORT:-8080}
+      - DATA_DIR=/app/data
       - REGION=us-east-1
+      - API_KEY=${API_KEY}
+      - ADMIN_KEY=${ADMIN_KEY}
     volumes:
       - ./data:/app/data
     restart: unless-stopped
